@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<!--
+Created using JS Bin
+http://jsbin.com
+
+Copyright (c) 2025 by anonymous (http://jsbin.com/vemijinude/1/edit)
+
+Released under the MIT license: http://jsbin.mit-license.org
+-->
+<meta name="robots" content="noindex">
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>VNM — Virtual Nations Map</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+<style>
+  html,body{height:100%}
+  body{margin:0;background:#0b1220;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,Apple SD Gothic Neo,sans-serif}
+  .container{max-width:960px;margin:32px auto;padding:0 16px}
+  .card{background:#0e1726;border:1px solid #1f2a44;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden}
+  .card-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1f2a44}
+  .title{font-weight:800;font-size:20px}
+  .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;background:#4338ca;color:#fff;font-weight:700;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .row{display:flex;gap:16px;padding:16px 20px}
+  .left{flex:1}
+  .right{width:280px}
+  .panel{background:#0b1323;border:1px solid #1f2a44;border-radius:12px;padding:12px}
+  .panel h3{margin:.25rem 0 .5rem;font-size:14px;color:#9fb0d3}
+  .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 10px}
+  .seg{display:flex;background:#0b1323;border:1px solid #1f2a44;border-radius:12px;overflow:hidden}
+  .seg button{padding:8px 10px;background:transparent;border:0;color:#cbd5e1;font-weight:700;cursor:pointer}
+  .seg button.active{background:#1b254b}
+  .pill{padding:6px 10px;border-radius:999px;border:1px solid #1f2a44;background:#0b1323}
+  .hint{font-size:12px;color:#93a4c7}
+  .canvas-wrap{position:relative;background:#0a0f1e;border:1px solid #1f2a44;border-radius:12px;padding:8px}
+  #board{display:block;width:100%;height:420px;border-radius:10px;background:#0a0f1e;touch-action:none}
+  .status{font-size:12px;color:#8fbf8f}
+  .feed-card{background:#0b1323;border:1px solid #1f2a44;border-radius:12px;padding:12px;margin-top:16px}
+  .input, select{width:100%;background:#0b1323;border:1px solid #1f2a44;border-radius:12px;color:#dbe5ff;padding:10px}
+  textarea.input{min-height:140px;resize:vertical}
+
+  .nation-list{position:absolute;right:12px;bottom:12px;background:rgba(10,15,30,.85);
+    border:1px solid #1f2a44;border-radius:10px;padding:8px 10px;backdrop-filter:blur(4px);max-height:160px;overflow:auto}
+  .nation-row{display:flex;align-items:center;gap:8px;font-size:12px;margin:4px 0}
+  .swatch{width:14px;height:14px;border-radius:3px;border:1px solid rgba(255,255,255,.2)}
+
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal{width:min(92vw,520px);background:#0e1726;border:1px solid #1f2a44;border-radius:16px;padding:16px}
+  .modal h3{margin-top:0;font-size:16px}
+  .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .badge{border:1px solid #1f2a44;border-radius:999px;padding:3px 8px;font-size:12px;color:#9fb0d3}
+  .taken-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
+  .taken-item{display:flex;align-items:center;gap:8px;font-size:12px}
+
+  /* 아바타(국기) */
+  .avatar{width:24px;height:24px;border-radius:999px;object-fit:cover;border:1px solid rgba(255,255,255,.2)}
+  .post-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .cmt-item{display:flex;gap:8px;align-items:flex-start;border-top:1px solid #1f2a44;padding-top:8px;margin-top:8px}
+
+  /* 우측 패널의 리스트 */
+  .mini-list{display:grid;gap:8px;max-height:200px;overflow:auto}
+  .mini-item{font-size:12px;line-height:1.35;border:1px solid #1f2a44;background:#0b1323;border-radius:8px;padding:8px}
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="card-hd">
+        <div class="title">🏛️ VNM — Virtual Nations Map</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="priceBadge" class="badge">Grondprice: 50</span>
+          <span id="balBadge" class="badge">보유 재화: -</span>
+          <button id="btnLogin" class="btn">로그인/회원가입</button>
+          <button id="btnLogout" class="btn" style="display:none;background:#334155">로그아웃</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="left">
+          <div class="panel">
+            <h3>실시간 픽셀 영토 보드 (1000×1500)</h3>
+
+            <div class="toolbar">
+              <div class="seg" id="modeSeg">
+                <button data-mode="draw" class="active">그리기</button>
+                <button data-mode="pan">이동</button>
+                <button data-mode="erase">지우개</button>
+              </div>
+
+              <label class="pill">
+                <span class="hint">색상</span>
+                <input id="color" type="color" value="#4ade80" style="background:transparent;border:0;width:48px;vertical-align:middle;margin-left:6px;cursor:pointer">
+              </label>
+
+              <label class="pill">
+                <span class="hint">브러시</span>
+                <select id="brush" style="background:transparent;border:0;margin-left:6px;cursor:pointer">
+                  <option value="1">1셀</option>
+                  <option value="2">2셀</option>
+                  <option value="3">3셀</option>
+                </select>
+              </label>
+
+              <div class="seg">
+                <button id="zoomIn">확대</button>
+                <button id="zoomOut">축소</button>
+                <button id="zoomReset">맞춤</button>
+              </div>
+
+              <span id="conn" class="status">연결 중…</span>
+            </div>
+
+            <div class="canvas-wrap" id="canvasWrap">
+              <canvas id="board" width="600" height="400"></canvas>
+              <div id="nationList" class="nation-list" style="display:none">
+                <div class="hint" style="margin-bottom:4px">건국 국가</div>
+                <div id="nationItems"></div>
+              </div>
+            </div>
+
+            <div class="toolbar" style="margin-top:12px">
+              <button class="btn" id="btnExport" style="background:#1b6aa7">내보내기(JSON)</button>
+              <input id="fileImport" type="file" accept="application/json" style="display:none">
+              <button class="btn" id="btnImport" style="background:#1b6aa7">불러오기</button>
+              <button class="btn" id="btnClearLocal" style="background:#7c3aed">화면 초기화(로컬)</button>
+            </div>
+
+            <div class="hint">Tip: 모드=이동일 때 드래그로 팬, 휠로 줌. 그리기/지우개는 드래그하여 칠하세요.</div>
+          </div>
+
+          <div class="feed-card">
+            <h3>새 게시물</h3>
+            <input id="postTitle" class="input" placeholder="제목 (예: ○○국 헌법 초안 v1)">
+            <textarea id="postBody" class="input" placeholder="내용 (멘션: @국명)"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <select id="postCategory" class="input" style="flex:0 0 140px">
+                <option value="법령">법령</option>
+                <option value="외교">외교</option>
+                <option value="일반" selected>일반</option>
+              </select>
+              <button id="btnPublish" class="btn" style="flex:1;background:#16a34a">게시</button>
+            </div>
+            <div class="hint" style="margin-top:6px">@국명 으로 멘션 가능 · 멘션 받은 사용자는 알림을 받습니다</div>
+          </div>
+
+          <div class="feed-card">
+            <h3>타임라인</h3>
+            <select id="filterCategory" class="input" style="max-width:200px">
+              <option value="all">전체</option>
+              <option value="법령">법령</option>
+              <option value="외교">외교</option>
+              <option value="일반">일반</option>
+            </select>
+            <div id="feed" style="margin-top:12px;display:grid;gap:10px"></div>
+          </div>
+        </div>
+
+        <div class="right">
+          <div class="panel">
+            <h3>영토 속성</h3>
+            <input id="projectName" class="input" placeholder="국가명 (예: 마이크로네이션 연맹)">
+            <div class="hint" style="margin-top:6px">현재 보드는 모든 사용자에게 실시간 공유됩니다.</div>
+          </div>
+
+          <!-- ✅ 여기에 ‘실시간 유저 행적’ 배치 -->
+          <div class="panel">
+            <h3>실시간 행적</h3>
+            <div id="activityList" class="mini-list"></div>
+          </div>
+
+          <!-- ✅ 간단 알림 패널 -->
+          <div class="panel">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <h3>내 알림</h3>
+              <button id="btnMarkRead" class="btn" style="background:#334155;padding:6px 10px">모두 읽음</button>
+            </div>
+            <div id="notifList" class="mini-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 구매 모달 -->
+  <div id="buyBack" class="modal-backdrop">
+    <div class="modal">
+      <h3>영토 구매</h3>
+      <div id="buyDesc" class="hint">—</div>
+      <div class="actions">
+        <button id="btnBuyCancel" class="btn" style="background:#334155">취소</button>
+        <button id="btnBuyConfirm" class="btn" style="background:#16a34a">구매</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 국가 색상 선택 모달 -->
+  <div id="colorBack" class="modal-backdrop">
+    <div class="modal">
+      <h3>국가 아이덴티티 색상 선택</h3>
+      <div class="hint">회원가입 직후 1회 설정합니다. 이미 선점된 색상은 피해주세요.</div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
+        <input type="color" id="identityColor" value="#22c55e" style="width:56px;height:34px;background:transparent;border:0">
+        <input type="text" id="identityColorHex" class="input" placeholder="#RRGGBB" style="max-width:160px">
+        <button id="btnColorSave" class="btn">색상 확정</button>
+      </div>
+      <div class="hint" style="margin-top:6px">이미 선점된 색상</div>
+      <div id="takenColors" class="taken-list"></div>
+    </div>
+  </div>
+
+  <!-- 로그인/회원가입 모달 -->
+  <div id="authBack" class="modal-backdrop">
+    <div class="modal">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3 style="margin-bottom:8px">로그인 / 회원가입</h3>
+        <button id="authClose" class="btn" style="background:#334155">닫기</button>
+      </div>
+
+      <div class="seg" id="authModeSeg" style="margin-bottom:10px">
+        <button data-auth="login" class="active">로그인</button>
+        <button data-auth="signup">회원가입</button>
+      </div>
+
+      <div id="authLoginForm">
+        <input id="loginEmail" type="email" class="input" placeholder="이메일" autocomplete="email" style="margin-bottom:8px">
+        <input id="loginPassword" type="password" class="input" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
+        <div class="actions">
+          <button id="doLogin" class="btn" style="background:#16a34a">로그인</button>
+        </div>
+      </div>
+
+      <div id="authSignupForm" style="display:none">
+        <input id="signupEmail" type="email" class="input" placeholder="이메일" autocomplete="email" style="margin-bottom:8px">
+        <input id="signupPassword" type="password" class="input" placeholder="비밀번호 (6자 이상)" autocomplete="new-password" style="margin-bottom:8px">
+        <input id="signupNation" type="text" class="input" placeholder="국명 (닉네임)" autocomplete="organization">
+        <div class="actions">
+          <button id="doSignup" class="btn" style="background:#16a34a">회원가입</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 국기(프로필) 업로드 모달 -->
+  <div id="flagBack" class="modal-backdrop">
+    <div class="modal">
+      <h3>국기(프로필) 업로드</h3>
+      <div class="hint">정사각형 이미지를 권장합니다. PNG/JPG (최대 2MB)</div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:10px">
+        <img id="flagPreview" class="avatar" style="width:48px;height:48px;border-radius:8px" src="" alt="">
+        <input id="flagFile" type="file" accept="image/*" />
+      </div>
+      <div class="actions">
+        <button id="btnFlagSkip" class="btn" style="background:#334155">건너뛰기</button>
+        <button id="btnFlagUpload" class="btn" style="background:#16a34a">업로드</button>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+// ===== Firebase SDKs =====
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getAnalytics, isSupported as analyticsSupported } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-analytics.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signOut, updateProfile,
+  setPersistence, browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, deleteDoc, getDoc, getDocs,
+  onSnapshot, serverTimestamp, writeBatch, query, orderBy, where, addDoc,
+  runTransaction, limit
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import {
+  getStorage, ref as sRef, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
+
+// ===== 사용자 제공 구성 =====
+const firebaseConfig = {
+  apiKey: "AIzaSyCYYBz3GLXmz8wJ3GzvGhQxHXN0Ht7enVI",
+  authDomain: "canter-67ac7.firebaseapp.com",
+  projectId: "canter-67ac7",
+  storageBucket: "canter-67ac7.firebasestorage.app",
+  messagingSenderId: "674361186252",
+  appId: "1:674361186252:web:628989bdbc1591a610ef69",
+  measurementId: "G-W6CMCZGBC5"
+};
+const app = initializeApp(firebaseConfig);
+try { analyticsSupported().then((ok)=>{ if (ok) getAnalytics(app); }); } catch {}
+
+const auth = getAuth(app);
+await setPersistence(auth, browserLocalPersistence);
+const db = getFirestore(app);
+// ✅ 실제 기본 버킷으로 강제 사용(업로드 오류 방지):
+const storage = getStorage(app, `gs://${firebaseConfig.projectId}.appspot.com`);
+
+// ===== 가격/설정 =====
+let grondPrice = 50;
+const priceBadge = document.getElementById('priceBadge');
+const settingsRef = doc(db, 'settings', 'global');
+(async ()=>{
+  try{
+    const s = await getDoc(settingsRef);
+    if (s.exists() && typeof s.data().grondPrice === 'number'){
+      grondPrice = s.data().grondPrice;
+      priceBadge.textContent = `Grondprice: ${grondPrice}`;
+    } else {
+      await setDoc(settingsRef, { grondPrice: grondPrice }, { merge: true });
+    }
+  }catch(e){ console.warn('settings load failed', e); }
+})();
+
+// ===== DOM =====
+const btnLogin = document.getElementById('btnLogin');
+const btnLogout = document.getElementById('btnLogout');
+const conn = document.getElementById('conn');
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const modeSeg = document.getElementById('modeSeg');
+const colorEl = document.getElementById('color');
+const brushEl = document.getElementById('brush');
+const zoomIn = document.getElementById('zoomIn');
+const zoomOut = document.getElementById('zoomOut');
+const zoomReset = document.getElementById('zoomReset');
+const btnExport = document.getElementById('btnExport');
+const btnImport = document.getElementById('btnImport');
+const fileImport = document.getElementById('fileImport');
+const btnClearLocal = document.getElementById('btnClearLocal');
+const balBadge = document.getElementById('balBadge');
+const projectNameEl = document.getElementById('projectName');
+const nationListBox = document.getElementById('nationList');
+const nationItems = document.getElementById('nationItems');
+
+// 구매 모달
+const buyBack = document.getElementById('buyBack');
+const buyDesc = document.getElementById('buyDesc');
+const btnBuyCancel = document.getElementById('btnBuyCancel');
+const btnBuyConfirm = document.getElementById('btnBuyConfirm');
+
+// 색상 선택 모달
+const colorBack = document.getElementById('colorBack');
+const identityColor = document.getElementById('identityColor');
+const identityColorHex = document.getElementById('identityColorHex');
+const takenColors = document.getElementById('takenColors');
+const btnColorSave = document.getElementById('btnColorSave');
+
+// 인증 모달
+const authBack = document.getElementById('authBack');
+const authClose = document.getElementById('authClose');
+const authModeSeg = document.getElementById('authModeSeg');
+const authLoginForm = document.getElementById('authLoginForm');
+const authSignupForm = document.getElementById('authSignupForm');
+const loginEmail = document.getElementById('loginEmail');
+const loginPassword = document.getElementById('loginPassword');
+const signupEmail = document.getElementById('signupEmail');
+const signupPassword = document.getElementById('signupPassword');
+const signupNation = document.getElementById('signupNation');
+const doLogin = document.getElementById('doLogin');
+const doSignup = document.getElementById('doSignup');
+
+// 국기 업로드 모달
+const flagBack = document.getElementById('flagBack');
+const flagPreview = document.getElementById('flagPreview');
+const flagFile = document.getElementById('flagFile');
+const btnFlagUpload = document.getElementById('btnFlagUpload');
+const btnFlagSkip = document.getElementById('btnFlagSkip');
+
+// 우측 패널: 행적/알림
+const activityList = document.getElementById('activityList');
+const notifList = document.getElementById('notifList');
+const btnMarkRead = document.getElementById('btnMarkRead');
+
+// ===== 보드 설정 =====
+const BOARD_W = 1500, BOARD_H = 1000;
+const CELL = 10; // 10px 그리드
+const COLS = BOARD_W / CELL; // 150
+const ROWS = BOARD_H / CELL; // 100
+
+// 뷰(팬/줌)
+let scale = 1;
+let offsetX = 0, offsetY = 0;
+let isPanning = false, panStart = {x:0,y:0}, viewStart = {x:0,y:0};
+let didFirstFit = false;
+
+// 상태
+let mode = 'draw'; // draw | erase | pan
+let drawing = false;
+let lastCellKey = null;
+const pixels = new Map(); // "x_y" -> {x,y,color,ownerUid,nationName}
+let preStrokeKeys = null;
+let pendingNew = new Map();    // 새로 칠해진 셀들
+let pendingDelete = new Map(); // 본인 땅 삭제
+
+// 유저/국가
+let me = null;
+let myProfile = null;
+let nations = new Map();
+
+// ===== 도우미 =====
+function worldToScreen(x, y) { return { x: x*scale + offsetX, y: y*scale + offsetY }; }
+function screenToWorld(x, y) { return { x: (x - offsetX) / scale, y: (y - offsetY) / scale }; }
+function clamp(v,a,b){return Math.max(a, Math.min(b,v));}
+function fitInitial() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const sx = w / BOARD_W, sy = h / BOARD_H;
+  scale = Math.min(sx, sy);
+  const viewW = BOARD_W*scale, viewH = BOARD_H*scale;
+  offsetX = (w - viewW)/2;
+  offsetY = (h - viewH)/2;
+  render();
+}
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if (!didFirstFit) { fitInitial(); didFirstFit = true; } else { render(); }
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ===== 렌더링 =====
+function render() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ctx.clearRect(0,0,w,h);
+
+  // 보드
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = "#0a0f1e";
+  ctx.fillRect(0,0,BOARD_W,BOARD_H);
+
+  // 그리드
+  ctx.beginPath();
+  ctx.lineWidth = 0.25/scale;
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  for (let x=0; x<=COLS; x++){ const gx=x*CELL; ctx.moveTo(gx,0); ctx.lineTo(gx,BOARD_H); }
+  for (let y=0; y<=ROWS; y++){ const gy=y*CELL; ctx.moveTo(0,gy); ctx.lineTo(BOARD_W,gy); }
+  ctx.stroke();
+
+  // 픽셀
+  for (const v of pixels.values()){
+    ctx.fillStyle = v.color;
+    ctx.fillRect(v.x*CELL, v.y*CELL, CELL, CELL);
+  }
+  ctx.restore();
+}
+
+// ===== 입력 처리 =====
+modeSeg.addEventListener('click', (e)=>{
+  if (e.target.tagName !== 'BUTTON') return;
+  for (const b of modeSeg.querySelectorAll('button')) b.classList.remove('active');
+  e.target.classList.add('active');
+  mode = e.target.dataset.mode;
+});
+
+canvas.addEventListener('pointerdown', (e)=>{
+  canvas.setPointerCapture(e.pointerId);
+  const {x,y} = screenToWorld(e.offsetX, e.offsetY);
+  if (mode === 'pan'){
+    isPanning = true; panStart = {x:e.clientX,y:e.clientY}; viewStart={x:offsetX,y:offsetY}; return;
+  }
+  drawing = true;
+  lastCellKey = null;
+  preStrokeKeys = new Set(pixels.keys());
+  pendingNew.clear();
+  pendingDelete.clear();
+  paintAt(x,y);
+});
+
+canvas.addEventListener('pointermove', (e)=>{
+  const {x,y} = screenToWorld(e.offsetX, e.offsetY);
+  if (mode === 'pan' && isPanning){ offsetX = viewStart.x + (e.clientX-panStart.x); offsetY = viewStart.y + (e.clientY-panStart.y); render(); return; }
+  if (!drawing) return;
+  paintAt(x,y);
+});
+
+canvas.addEventListener('pointerup', async (e)=>{
+  canvas.releasePointerCapture(e.pointerId);
+  if (mode === 'pan'){ isPanning = false; return; }
+  if (!drawing) return;
+  drawing = false;
+
+  const needBuy = pendingNew.size;
+  if (needBuy > 0){
+    const cost = needBuy * grondPrice;
+    showBuyModal(needBuy, cost, async ()=>{
+      const ok = await chargeAndCommit(cost, pendingNew, pendingDelete);
+      if (!ok){
+        for(const [k] of pendingNew) pixels.delete(k);
+        render();
+        alert('잔액 부족 또는 오류로 구매가 취소되었습니다.');
+      }
+    }, ()=>{
+      for(const [k] of pendingNew) pixels.delete(k);
+      render();
+    });
+  } else {
+    if (pendingDelete.size>0) await commitDeletes(pendingDelete);
+  }
+});
+
+canvas.addEventListener('wheel', (e)=>{
+  e.preventDefault();
+  const mx = e.offsetX, my = e.offsetY;
+  const pre = screenToWorld(mx,my);
+  const factor = Math.exp(-e.deltaY * 0.0015);
+  scale = clamp(scale * factor, 0.2, 8);
+  const post = worldToScreen(pre.x, pre.y);
+  offsetX += (mx - post.x); offsetY += (my - post.y);
+  render();
+},{passive:false});
+
+function paintAt(wx, wy){
+  const bx = Math.floor(clamp(wx,0,BOARD_W-1) / CELL);
+  const by = Math.floor(clamp(wy,0,BOARD_H-1) / CELL);
+  const size = parseInt(brushEl.value,10);
+  for(let iy=0; iy<size; iy++){
+    for(let ix=0; ix<size; ix++){
+      const cx = bx+ix, cy = by+iy;
+      if (cx<0||cy<0||cx>=COLS||cy>=ROWS) continue;
+      const key = `${cx}_${cy}`;
+      if (mode === 'erase'){
+        const cur = pixels.get(key);
+        if (cur && cur.ownerUid === me?.uid){
+          pixels.delete(key);
+          pendingDelete.set(key, {x:cx,y:cy});
+        }
+        continue;
+      }
+      if (pixels.has(key)) continue;
+      const col = myProfile?.color || colorEl.value;
+      pixels.set(key, {x:cx, y:cy, color: col, ownerUid: me?.uid || null, nationName: myProfile?.nationName || (projectNameEl.value||'')});
+      pendingNew.set(key, {x:cx, y:cy});
+    }
+  }
+  render();
+}
+
+// ===== 구매 & 커밋 =====
+function showBuyModal(count, cost, onConfirm, onCancel){
+  buyDesc.textContent = `이번에 그린 새 픽셀: ${count}개 × ${grondPrice} = 총 ${cost}`;
+  buyBack.style.display = 'flex';
+  const off = ()=>{
+    buyBack.style.display = 'none';
+    btnBuyConfirm.removeEventListener('click', yes);
+    btnBuyCancel.removeEventListener('click', no);
+  };
+  const yes = ()=>{ off(); onConfirm&&onConfirm(); };
+  const no  = ()=>{ off(); onCancel&&onCancel(); };
+  btnBuyConfirm.addEventListener('click', yes);
+  btnBuyCancel.addEventListener('click', no);
+}
+
+async function chargeAndCommit(cost, newCells, delCells){
+  if (!me){ alert('로그인이 필요합니다.'); return false; }
+  try{
+    const userRef = doc(db, 'users', me.uid);
+    let newBalance = 0;
+    await runTransaction(db, async (tx)=>{
+      const snap = await tx.get(userRef);
+      const cur = snap.exists() ? snap.data() : {};
+      const bal = cur.balance ?? 0;
+      if (bal < cost) throw new Error('INSUFFICIENT');
+      newBalance = bal - cost;
+      tx.set(userRef, { balance: newBalance }, { merge: true });
+    });
+    const wb = writeBatch(db);
+    const ref = collection(db, 'pixels');
+    const nowNation = myProfile?.nationName || (projectNameEl.value||'');
+    const nowColor = myProfile?.color || colorEl.value;
+    for (const [key, v] of newCells){
+      const d = doc(ref, key);
+      wb.set(d, {
+        x:v.x, y:v.y, color: nowColor,
+        ownerUid: me.uid,
+        ownerName: me.displayName || myProfile?.nationName || me.email,
+        nationName: nowNation,
+        updatedAt: serverTimestamp()
+      }, {merge:false});
+    }
+    for (const [key, v] of delCells){
+      const d = doc(ref, key);
+      wb.delete(d);
+    }
+    await wb.commit();
+    balBadge.textContent = `보유 재화: ${newBalance}`;
+    // ✅ 실시간 행적 기록
+    if (newCells.size>0){
+      await addDoc(collection(db,'activities'), {
+        type:'expand', uid: me.uid, nationName: nowNation, color: nowColor,
+        count: newCells.size, createdAt: serverTimestamp()
+      });
+    }
+    pendingNew.clear(); pendingDelete.clear();
+    return true;
+  }catch(e){
+    console.error(e);
+    return false;
+  }
+}
+async function commitDeletes(delCells){
+  try{
+    const wb = writeBatch(db);
+    const ref = collection(db, 'pixels');
+    for (const [key, v] of delCells) wb.delete(doc(ref, key));
+    await wb.commit();
+    pendingDelete.clear();
+  }catch(e){ console.error(e); }
+}
+
+// ===== 실시간 구독 =====
+const pixelsRef = collection(db, 'pixels');
+onSnapshot(pixelsRef, (snap)=>{
+  snap.docChanges().forEach(ch=>{
+    const id = ch.doc.id;
+    if (ch.type === 'removed'){ pixels.delete(id); }
+    else {
+      const v = ch.doc.data();
+      pixels.set(id, {x:v.x,y:v.y,color:v.color,ownerUid:v.ownerUid||null,nationName:v.nationName||''});
+    }
+  });
+  conn.textContent = '실시간 연결됨';
+  render();
+}, (err)=>{ console.error(err); conn.textContent='연결 오류'; });
+
+// ===== 내보내기/불러오기/초기화 =====
+document.getElementById('btnExport').addEventListener('click', ()=>{
+  const arr = [...pixels.values()];
+  const blob = new Blob([JSON.stringify(arr)], {type:'application/json'});
+  const url = URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='pixels.json'; a.click(); URL.revokeObjectURL(url);
+});
+document.getElementById('btnImport').addEventListener('click', ()=> fileImport.click());
+fileImport.addEventListener('change', async (e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  let arr; try{ arr=JSON.parse(await f.text()); }catch{ alert('JSON 형식이 아닙니다.'); return; }
+  const wb=writeBatch(db); const ref=collection(db,'pixels');
+  const nowNation = myProfile?.nationName || (projectNameEl.value||'');
+  const nowColor = myProfile?.color || colorEl.value;
+  arr.forEach(v=>{
+    const d=doc(ref,`${v.x}_${v.y}`);
+    wb.set(d,{x:v.x,y:v.y,color:nowColor,ownerUid:me?.uid||null,ownerName:me?.displayName||me?.email||'',nationName:nowNation,updatedAt:serverTimestamp()},{merge:true});
+    pixels.set(`${v.x}_${v.y}`,{x:v.x,y:v.y,color:nowColor,ownerUid:me?.uid||null,nationName:nowNation});
+  });
+  await wb.commit(); render(); alert('불러오기 완료'); e.target.value='';
+});
+document.getElementById('btnClearLocal').addEventListener('click', ()=>{
+  if (!confirm('화면의 픽셀 표시만 초기화합니다. (서버 데이터는 유지)')) return;
+  pixels.clear(); render();
+});
+
+// ===== 인증 & 프로필(잔액/색상/국가명/국기) =====
+const usersRef = (uid)=>doc(db,'users',uid);
+const nationsRef = (uid)=>doc(db,'nations',uid);
+
+async function ensureUserDoc(u){
+  const ur = usersRef(u.uid);
+  const snap = await getDoc(ur);
+  if (!snap.exists()){
+    const initBal = grondPrice * 10; // 가입 초기 10픽셀분
+    await setDoc(ur,{ balance:initBal, color:null, nationName:(projectNameEl.value||''), photoURL:null },{merge:true});
+  }
+  myProfile = (await getDoc(ur)).data() || {};
+  balBadge.textContent = `보유 재화: ${myProfile.balance ?? 0}`;
+
+  if (myProfile.nationName) projectNameEl.value = myProfile.nationName;
+  projectNameEl.addEventListener('change', async ()=>{
+    myProfile.nationName = projectNameEl.value.trim();
+    await setDoc(ur,{ nationName: myProfile.nationName },{merge:true});
+    if (myProfile.color) await setDoc(nationsRef(u.uid), { name: myProfile.nationName, color: myProfile.color }, { merge:true });
+  });
+
+  if (!myProfile.color) openColorModal();
+  else colorEl.value = myProfile.color;
+
+  // 알림 구독 시작
+  subscribeNotifications(u.uid);
+}
+
+function openColorModal(){
+  colorBack.style.display='flex';
+  identityColorHex.value = myProfile?.color || identityColor.value;
+}
+btnColorSave.addEventListener('click', async ()=>{
+  if (!me) return;
+  const hex = (identityColorHex.value || identityColor.value || '').trim();
+  if (!/^#([0-9a-fA-F]{6})$/.test(hex)){ alert('색상 형식은 #RRGGBB 입니다.'); return; }
+  for(const n of nations.values()){
+    if ((n.color||'').toLowerCase() === hex.toLowerCase()){
+      alert('이미 선점된 색상입니다. 다른 색을 선택하세요.'); return;
+    }
+  }
+  const name = (projectNameEl.value||myProfile?.nationName||me.displayName||me.email||'무명국').toString();
+  await setDoc(usersRef(me.uid), { color: hex, nationName: name }, { merge:true });
+  await setDoc(nationsRef(me.uid), { name, color: hex }, { merge:true });
+  myProfile = (await getDoc(usersRef(me.uid))).data();
+  colorEl.value = myProfile.color;
+  colorBack.style.display='none';
+
+  // 색상 선택 완료 후, 국기 업로드 모달 오픈
+  openFlagModal();
+});
+
+identityColor.addEventListener('input', ()=> identityColorHex.value = identityColor.value);
+identityColorHex.addEventListener('input', ()=> {
+  const v = identityColorHex.value.trim();
+  if (/^#([0-9a-fA-F]{6})$/.test(v)) identityColor.value = v;
+});
+
+onSnapshot(collection(db,'nations'), (snap)=>{
+  nations.clear();
+  snap.forEach(d=>nations.set(d.id, d.data()));
+  const rows = [];
+  snap.forEach(d=>{
+    const n = d.data();
+    rows.push(`<div class="nation-row"><span class="swatch" style="background:${n.color||'#999'}"></span><span>${n.name||'(무명국)'}</span></div>`);
+  });
+  nationItems.innerHTML = rows.join('') || '<div class="hint">아직 건국된 국가가 없습니다.</div>';
+  nationListBox.style.display = 'block';
+
+  takenColors.innerHTML = rows.join('') || '<div class="hint">없음</div>';
+});
+
+// 로그인/회원가입 모달 토글 & 동작
+function openAuthModal(mode='login'){
+  authBack.style.display='flex';
+  setAuthMode(mode);
+}
+function closeAuthModal(){ authBack.style.display='none'; }
+function setAuthMode(mode){
+  const btns = authModeSeg.querySelectorAll('button');
+  btns.forEach(b=>b.classList.remove('active'));
+  const target = [...btns].find(b=>b.dataset.auth===mode);
+  if (target) target.classList.add('active');
+  if (mode==='login'){ authLoginForm.style.display='block'; authSignupForm.style.display='none'; }
+  else { authLoginForm.style.display='none'; authSignupForm.style.display='block'; }
+}
+
+btnLogin.addEventListener('click', ()=> openAuthModal('login'));
+btnLogout.addEventListener('click', ()=> signOut(auth));
+authClose.addEventListener('click', closeAuthModal);
+authBack.addEventListener('click', (e)=>{ if (e.target===authBack) closeAuthModal(); });
+authModeSeg.addEventListener('click', (e)=>{
+  if (e.target.tagName!=='BUTTON') return;
+  setAuthMode(e.target.dataset.auth);
+});
+
+doLogin.addEventListener('click', async ()=>{
+  const email = (loginEmail.value||'').trim();
+  const pass = loginPassword.value||'';
+  if (!email || !pass) { alert('이메일/비밀번호를 입력하세요.'); return; }
+  try{
+    await signInWithEmailAndPassword(auth, email, pass);
+    closeAuthModal();
+    alert('로그인되었습니다.');
+  }catch(e){
+    alert('로그인 오류: ' + (e.message||e.code));
+  }
+});
+doSignup.addEventListener('click', async ()=>{
+  const email = (signupEmail.value||'').trim();
+  const pass = signupPassword.value||'';
+  const nation = (signupNation.value||'').trim();
+  if (!email || !pass || !nation) { alert('이메일/비밀번호/국명을 입력하세요.'); return; }
+  try{
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await updateProfile(cred.user, {displayName: nation});
+    const initBal = grondPrice * 10;
+    await setDoc(usersRef(cred.user.uid), { balance: initBal, nationName: nation, color: null, photoURL: null }, { merge:true });
+    await setDoc(nationsRef(cred.user.uid), { name: nation }, { merge:true });
+
+    projectNameEl.value = nation;
+    myProfile = (await getDoc(usersRef(cred.user.uid))).data();
+
+    closeAuthModal();
+    alert('가입 완료. 색상/국기 설정을 진행하세요.');
+    openColorModal();
+  }catch(e){
+    alert('가입 오류: ' + (e.message||e.code));
+  }
+});
+
+// 인증 상태 관찰
+onAuthStateChanged(auth, async (user)=>{
+  me = user || null;
+  if (user){
+    btnLogin.style.display='none'; btnLogout.style.display='';
+    await ensureUserDoc(user);
+  }else{
+    btnLogin.style.display=''; btnLogout.style.display='none';
+    balBadge.textContent = '보유 재화: -';
+    notifList.innerHTML = '<div class="hint">로그인하면 알림을 볼 수 있어요</div>';
+  }
+});
+
+// ===== 국기 업로드 (버튼 반응 없음 버그 대응: 로딩/디스에이블/정확 버킷) =====
+function openFlagModal(){
+  flagPreview.src = myProfile?.photoURL || '';
+  flagFile.value = '';
+  flagBack.style.display = 'flex';
+}
+function closeFlagModal(){
+  flagBack.style.display = 'none';
+}
+flagFile.addEventListener('change', ()=>{
+  const f = flagFile.files?.[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  flagPreview.src = url;
+});
+
+btnFlagSkip.addEventListener('click', ()=> closeFlagModal());
+
+btnFlagUpload.addEventListener('click', async ()=>{
+  if (!me){ alert('로그인이 필요합니다.'); return; }
+  const f = flagFile.files?.[0];
+  if (!f){ alert('이미지를 선택하세요.'); return; }
+
+  // 🔧 업로드 중 UI 잠금(버튼 비활성/텍스트 변경)
+  const prevText = btnFlagUpload.textContent;
+  btnFlagUpload.disabled = true;
+  btnFlagUpload.textContent = '업로드 중…';
+
+  try{
+    if (f.size > 2*1024*1024) throw new Error('2MB 이하 이미지만 업로드 가능합니다.');
+    const path = `flags/${me.uid}_${Date.now()}`;
+    const ref = sRef(storage, path);
+    await uploadBytes(ref, f, { contentType: f.type || 'image/png' });
+    const url = await getDownloadURL(ref);
+
+    await setDoc(usersRef(me.uid), { photoURL: url }, { merge:true });
+    await setDoc(nationsRef(me.uid), { flagURL: url }, { merge:true });
+    await updateProfile(me, { photoURL: url });
+
+    myProfile = (await getDoc(usersRef(me.uid))).data();
+    // ✅ 업로드 완료 후 모달 닫기 & 안내
+    closeFlagModal();
+    alert('국기(프로필) 업로드 완료!');
+  }catch(e){
+    console.error(e);
+    alert('업로드 실패: ' + (e.message || e.code || '알 수 없는 오류'));
+  }finally{
+    btnFlagUpload.disabled = false;
+    btnFlagUpload.textContent = prevText;
+  }
+});
+
+// ===== 커뮤니티: 게시 & 피드(+작성자 국명/국기, 댓글, 알림/멘션) =====
+const postsRef = collection(db, 'posts');
+const postTitle = document.getElementById('postTitle');
+const postBody = document.getElementById('postBody');
+const postCategory = document.getElementById('postCategory');
+
+const postMeta = new Map(); // postId -> {authorUid, title}
+
+function parseMentions(text){
+  const set = new Set();
+  const re = /@([\p{L}\p{N}_\-]{1,32})/gu; // 한글/영문/숫자/언더스코어/하이픈
+  let m; while((m = re.exec(text))){ set.add(m[1]); }
+  return [...set];
+}
+
+async function notifyUser(uid, payload){
+  try{
+    await addDoc(collection(db, `users/${uid}/notifications`), {
+      ...payload,
+      read: false,
+      createdAt: serverTimestamp()
+    });
+  }catch(e){ console.warn('notify fail', e); }
+}
+
+async function notifyMentions(mentions, payloadBase){
+  // 멘션된 국명 -> nations 컬렉션에서 name 매칭
+  for (const name of mentions){
+    try{
+      const snap = await getDocs(query(collection(db,'nations'), where('name','==',name)));
+      snap.forEach(docu=>{
+        const targetUid = docu.id;
+        if (me && targetUid === me.uid) return; // 자기 자신 멘션은 무시
+        notifyUser(targetUid, { type:'mention', ...payloadBase, message:`${payloadBase.actorNation} 님이 당신을 멘션했습니다.` });
+      });
+    }catch(e){ console.warn('mention query fail', e); }
+  }
+}
+
+document.getElementById('btnPublish').addEventListener('click', async ()=>{
+  const user = auth.currentUser;
+  if (!user){ alert('로그인이 필요합니다.'); return; }
+  const title = (postTitle.value||'').trim();
+  const body = (postBody.value||'').trim();
+  const category = postCategory.value;
+  if (!title || !body){ alert('제목과 내용을 입력하세요.'); return; }
+  const authorNation = myProfile?.nationName || user.displayName || user.email;
+  const authorPhoto = myProfile?.photoURL || user.photoURL || null;
+
+  const ref = await addDoc(postsRef, {
+    title, body, category,
+    authorUid: user.uid,
+    authorNationName: authorNation,
+    authorPhotoURL: authorPhoto,
+    createdAt: serverTimestamp()
+  });
+
+  // ✅ 게시글 본문 멘션 알림
+  const mentions = parseMentions(`${title}\n${body}`);
+  await notifyMentions(mentions, { type:'mention_post', postId: ref.id, actorUid: user.uid, actorNation: authorNation, preview: title });
+
+  postTitle.value=''; postBody.value='';
+  alert('게시되었습니다.');
+});
+
+const feed = document.getElementById('feed');
+const filterCategory = document.getElementById('filterCategory');
+
+function formatDate(ts){
+  try{
+    const d = ts?.toDate?.() ? ts.toDate() : (ts instanceof Date ? ts : new Date());
+    return d.toLocaleString();
+  }catch{ return new Date().toLocaleString(); }
+}
+
+function renderPostCard(id, p){
+  const el = document.createElement('article');
+  el.className = 'panel';
+  const avatar = p.authorPhotoURL || '';
+  const nation = p.authorNationName || '(무명국)';
+
+  el.innerHTML = `
+    <div class="post-header">
+      <img class="avatar" src="${avatar || ''}" alt="" onerror="this.style.display='none'">
+      <div style="font-weight:800">${p.title || '(제목 없음)'}
+        <span class="hint" style="margin-left:8px">by ${nation}</span>
+      </div>
+      <div class="hint" style="margin-left:auto">${formatDate(p.createdAt)}</div>
+    </div>
+    <div class="hint" style="margin-bottom:8px">카테고리: ${p.category}</div>
+    <div style="white-space:pre-wrap">${p.body || ''}</div>
+
+    <!-- 댓글 UI -->
+    <div id="cmt-list-${id}" style="margin-top:10px"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <input id="cmt-input-${id}" class="input" placeholder="댓글을 입력하세요 (멘션: @국명)" />
+      <button id="cmt-send-${id}" class="btn" style="flex:0 0 auto;background:#2563eb">댓글</button>
+    </div>
+  `;
+  // 메타 저장(댓글 알림 용)
+  postMeta.set(id, { authorUid: p.authorUid, title: p.title, authorNation: p.authorNationName });
+  // 댓글 이벤트 바인딩
+  setTimeout(()=> attachCommentHandlers(id), 0);
+  return el;
+}
+
+const commentUnsubs = new Map();
+function attachCommentHandlers(postId){
+  const input = document.getElementById(`cmt-input-${postId}`);
+  const sendBtn = document.getElementById(`cmt-send-${postId}`);
+  const listBox = document.getElementById(`cmt-list-${postId}`);
+  if (!input || !sendBtn || !listBox) return;
+
+  if (commentUnsubs.has(postId)){ commentUnsubs.get(postId)(); commentUnsubs.delete(postId); }
+
+  sendBtn.addEventListener('click', async ()=>{
+    const user = auth.currentUser;
+    if (!user){ alert('로그인이 필요합니다.'); return; }
+    const text = (input.value||'').trim();
+    if (!text) return;
+    const authorNation = myProfile?.nationName || user.displayName || user.email;
+    const authorPhoto = myProfile?.photoURL || user.photoURL || null;
+    const cRef = await addDoc(collection(db, `posts/${postId}/comments`), {
+      text, authorUid: user.uid,
+      authorNationName: authorNation,
+      authorPhotoURL: authorPhoto,
+      createdAt: serverTimestamp()
+    });
+    input.value='';
+
+    // ✅ 댓글 알림(게시글 작성자)
+    const meta = postMeta.get(postId);
+    if (meta?.authorUid && meta.authorUid !== user.uid){
+      await notifyUser(meta.authorUid, {
+        type:'comment',
+        postId: postId,
+        commentId: cRef.id,
+        actorUid: user.uid,
+        actorNation: authorNation,
+        message:`${authorNation} 님이 댓글을 남겼습니다.`,
+        preview: text.slice(0,80)
+      });
+    }
+    // ✅ 댓글 멘션 알림
+    const mentions = parseMentions(text);
+    await notifyMentions(mentions, {
+      type:'mention_comment',
+      postId: postId,
+      commentId: cRef.id,
+      actorUid: user.uid,
+      actorNation: authorNation,
+      preview: text.slice(0,80)
+    });
+  });
+
+  const qRef = query(collection(db, `posts/${postId}/comments`), orderBy('createdAt','asc'));
+  const unsub = onSnapshot(qRef, (snap)=>{
+    listBox.innerHTML = '';
+    snap.forEach(d=>{
+      const c = d.data();
+      const li = document.createElement('div');
+      li.className = 'cmt-item';
+      li.innerHTML = `
+        <img class="avatar" src="${c.authorPhotoURL || ''}" alt="" onerror="this.style.display='none'">
+        <div style="flex:1">
+          <div class="hint" style="margin-bottom:2px">${c.authorNationName || '(익명)'} · ${formatDate(c.createdAt)}</div>
+          <div style="white-space:pre-wrap">${c.text || ''}</div>
+        </div>
+      `;
+      listBox.appendChild(li);
+    });
+  });
+  commentUnsubs.set(postId, unsub);
+}
+
+let unsubscribeFeed = null;
+function loadFeed(cat='all'){
+  if (unsubscribeFeed) unsubscribeFeed();
+  commentUnsubs.forEach(fn=>fn()); commentUnsubs.clear();
+
+  let qRef = query(postsRef, orderBy('createdAt','desc'));
+  if (cat !== 'all'){ qRef = query(postsRef, where('category','==',cat), orderBy('createdAt','desc')); }
+  unsubscribeFeed = onSnapshot(qRef, (snap)=>{
+    feed.innerHTML = '';
+    snap.forEach(docu => feed.appendChild(renderPostCard(docu.id, docu.data())));
+  });
+}
+filterCategory.addEventListener('change', ()=> loadFeed(filterCategory.value));
+loadFeed();
+
+// ===== 실시간 행적 표시 =====
+onSnapshot(query(collection(db,'activities'), orderBy('createdAt','desc'), limit(30)), (snap)=>{
+  activityList.innerHTML = '';
+  snap.forEach(d=>{
+    const a = d.data();
+    if (a.type==='expand'){
+      const div = document.createElement('div');
+      div.className='mini-item';
+      div.innerHTML = `<div><b>${a.nationName || '(무명국)'}</b> 님이 <b>${a.count}</b> 픽셀을 확장하였습니다.</div>
+                       <div class="hint">${formatDate(a.createdAt)}</div>`;
+      activityList.appendChild(div);
+    }
+  });
+});
+
+// ===== 알림 구독 & 모두 읽음 =====
+let unsubNotif = null;
+function subscribeNotifications(uid){
+  if (unsubNotif) unsubNotif();
+  const qRef = query(collection(db, `users/${uid}/notifications`), orderBy('createdAt','desc'), limit(30));
+  unsubNotif = onSnapshot(qRef, (snap)=>{
+    notifList.innerHTML = '';
+    if (snap.empty){
+      notifList.innerHTML = '<div class="hint">알림이 없습니다.</div>';
+      return;
+    }
+    snap.forEach(d=>{
+      const n = d.data();
+      const div = document.createElement('div');
+      div.className = 'mini-item';
+      const readMark = n.read ? '' : ' <span class="badge" style="margin-left:6px">NEW</span>';
+      const message = n.message || (n.type==='mention'?'멘션 알림':'알림');
+      const preview = n.preview ? `<div class="hint" style="margin-top:4px">${n.preview}</div>` : '';
+      div.innerHTML = `<div>${message}${readMark}</div>${preview}<div class="hint">${formatDate(n.createdAt)}</div>`;
+      notifList.appendChild(div);
+    });
+  }, (err)=>{
+    console.warn('notif subscribe error', err);
+    notifList.innerHTML = '<div class="hint">알림을 불러오지 못했습니다.</div>';
+  });
+}
+
+btnMarkRead.addEventListener('click', async ()=>{
+  if (!me) return;
+  try{
+    const qRef = query(collection(db, `users/${me.uid}/notifications`), where('read','==',false), limit(50));
+    const s = await getDocs(qRef);
+    const wb = writeBatch(db);
+    s.forEach(docu=> wb.set(doc(db, `users/${me.uid}/notifications/${docu.id}`), { read:true }, { merge:true }));
+    await wb.commit();
+  }catch(e){ console.warn('mark read fail', e); }
+});
+</script>
+</body>
+</html>
